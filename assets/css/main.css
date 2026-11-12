@@ -470,10 +470,13 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numer
 /* --- el índice --- */
 .indice { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--filete); }
 .indice li { border-bottom: 1px solid var(--filete); }
+/* Áreas con nombre y no posición implícita: la fila tiene cinco piezas y en
+   móvil tres columnas, y dejar que la rejilla las colocara sola mandaba el
+   «17 preguntas» a la columna del número, en dos líneas, debajo. */
 .tema {
   display: grid;
   grid-template-columns: 2.9rem minmax(0, 1fr) auto auto;
-  grid-template-rows: auto 2px;
+  grid-template-areas: "n titulo marcas estado" ". regla regla regla";
   align-items: baseline;
   gap: .25rem 1rem;
   width: 100%; text-align: left;
@@ -496,7 +499,11 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numer
 /* La medida del tema arranca bajo el título, no bajo el número: a lo ancho de
    toda la fila se leía como un subrayado, no como una medida. Y sin raíl: en
    una lámina lo que no se ha hecho no se dibuja. */
-.tema .regla { grid-column: 2 / -1; background: transparent; }
+.tema > .n { grid-area: n; }
+.tema > .titulo { grid-area: titulo; }
+.tema > .marcas { grid-area: marcas; }
+.tema > .cuenta, .tema > .pildora { grid-area: estado; justify-self: end; white-space: nowrap; }
+.tema > .regla { grid-area: regla; background: transparent; }
 
 .cuenta { font-variant-numeric: lining-nums tabular-nums; font-size: .9rem; color: var(--tinta-tenue); }
 .cuenta b { font-weight: 600; color: var(--tinta); }
@@ -515,8 +522,15 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numer
 
 @media (max-width: 640px) {
   .cifras { gap: .9rem; }
-  .tema { grid-template-columns: 2.2rem minmax(0, 1fr) auto; gap: .25rem .6rem; }
-  .tema .marcas { grid-column: 2 / -1; }
+  .tema {
+    grid-template-columns: 2.2rem minmax(0, 1fr) auto;
+    grid-template-areas: "n titulo estado" ". marcas marcas" ". regla regla";
+    gap: .2rem .6rem;
+  }
+  .tema > .marcas.vacia { display: none; }
+  /* En un móvil el subtítulo de la cabecera ocupaba tres líneas fijas encima
+     de todo lo demás. La marca basta para saber dónde estás. */
+  .cabecera .marca small { display: none; }
 }
 
 /* --- las opciones finas, plegadas --- */

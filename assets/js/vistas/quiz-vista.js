@@ -3,7 +3,7 @@
  * no guarda estado propio salvo el nodo y el cronómetro.
  */
 import { h, crudo, render, alPulsar, esc, reloj, pct, nuevaVista } from '../ui.js'
-import { CONFIG, CLASES_PUBLICADAS } from '../config.js'
+import { CONFIG, CLASES_PUBLICADAS, SOLO_EXAMEN, CORREO_ERRATAS } from '../config.js'
 import * as Q from '../quiz.js'
 import { db } from '../db.js'
 
@@ -34,7 +34,18 @@ function bloqueExplicacion(p, correccion) {
     fuentes.push(`<span class="pildora aviso">${esc(p.fuente_clase.nota)}</span>`)
   if (p.guideline_ref) fuentes.push(`<span class="pildora">${esc(p.guideline_ref)}</span>`)
   if (p.trial_ref) fuentes.push(`<span class="pildora">${esc(p.trial_ref)}</span>`)
-  fuentes.push(`<button class="sutil pequeno" data-errata="${esc(p.id)}">Avisar de un error</button>`)
+  // Sin servidor, el aviso solo puede salir por correo; y si no hay correo
+  // configurado no se ofrece, porque guardarlo en el móvil del alumno no se lo
+  // haría llegar a nadie.
+  if (!SOLO_EXAMEN) {
+    fuentes.push(`<button class="sutil pequeno" data-errata="${esc(p.id)}">Avisar de un error</button>`)
+  } else if (CORREO_ERRATAS) {
+    const asunto = encodeURIComponent(`Error en la pregunta ${p.id}`)
+    const cuerpo = encodeURIComponent(`Pregunta ${p.id}.\n\nQué falla:\n`)
+    fuentes.push(
+      `<a class="sutil pequeno boton" href="mailto:${esc(CORREO_ERRATAS)}?subject=${asunto}&body=${cuerpo}">Avisar de un error</a>`,
+    )
+  }
   partes.push(`<div class="fuentes">${fuentes.join('')}</div>`)
 
   return `<div class="explicacion">${partes.join('')}</div>`
@@ -331,6 +342,11 @@ export function vistaQuiz(destino, quizInicial, { alTerminar, registrar }) {
 }
 
 /** Pantalla de resultado, con el marcador en la escala del examen real. */
+/** Decimales con coma: es una nota en español, y «0.35» se lee como un error. */
+const dec = (x, d) => Number(x).toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d })
+const conSigno = (x, d) => (x > 0 ? '+' : x < 0 ? '−' : '') + dec(Math.abs(x), d)
+const unoVarios = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`
+
 export function vistaResultado(destino, q, res, { alVolver, alRepasar }) {
   nuevaVista(destino)
   const m = res.marcador
@@ -340,7 +356,7 @@ export function vistaResultado(destino, q, res, { alVolver, alRepasar }) {
     <section class="tarjeta">
       <h1>Resultado</h1>
       <div class="rejilla tres" style="margin:1.2rem 0">
-        <div class="metrica"><div class="valor">${m.total.toFixed(1)}</div><div class="etiqueta">puntos obtenidos</div></div>
+        <div class="metrica"><div class="valor">${dec(m.total, 1)}</div><div class="etiqueta">puntos obtenidos</div></div>
         <div class="metrica"><div class="valor">${m.test.aciertos}/${m.test.n}</div><div class="etiqueta">test acertados</div></div>
         <div class="metrica"><div class="valor">${res.minutos}</div><div class="etiqueta">minutos</div></div>
         <div class="metrica"><div class="valor">${res.segundosMedianosTest ?? '—'}</div><div class="etiqueta">segundos por pregunta</div></div>
@@ -349,9 +365,10 @@ export function vistaResultado(destino, q, res, { alVolver, alRepasar }) {
       ${crudo(
         m.test.n
           ? `<div class="aviso-caja ${m.test.fallos > m.test.enBlanco * 3 ? 'atencion' : ''}">
-              <strong>Con las reglas del examen:</strong> ${m.test.aciertos} aciertos (+${m.test.aciertos}),
-              ${m.test.fallos} fallos (${(m.test.fallos * CONFIG.examen.test.fallo).toFixed(2)}) y
-              ${m.test.enBlanco} en blanco (0) &rarr; <strong>${m.test.brutoTest.toFixed(2)} puntos</strong> en la parte de test.
+              <strong>Con las reglas del examen:</strong> ${unoVarios(m.test.aciertos, 'acierto', 'aciertos')}
+              (${conSigno(m.test.aciertos, 0)}), ${unoVarios(m.test.fallos, 'fallo', 'fallos')}
+              (${conSigno(m.test.fallos * CONFIG.examen.test.fallo, 2)}) y ${m.test.enBlanco} en blanco (0)
+              &rarr; <strong>${dec(m.test.brutoTest, 2)} puntos</strong> en la parte de test.
               ${
                 m.test.fallos >= 3
                   ? ` Cada tres fallos te cuestan casi un acierto: cuando dudes entre dos opciones, arriesga; cuando no tengas ni idea, el blanco vale más que el fallo.`
@@ -381,7 +398,11 @@ export function vistaResultado(destino, q, res, { alVolver, alRepasar }) {
           <thead><tr><th>#</th><th>Tema</th><th>Formato</th><th>Resultado</th><th class="num">Tiempo</th></tr></thead>
           <tbody>
             ${crudo(
+              // Solo las que llegaste a ver. Si dejas un simulacro en la pregunta 3,
+              // las 87 restantes no son fallos: salían como «fallo» porque una
+              // pregunta sin corregir no tiene `correcto` y caía en esa rama.
               q.preguntas
+                .filter((p) => p.id in q.correcciones)
                 .map((p, i) => {
                   const c = q.correcciones[p.id] ?? {}
                   const t = q.tiempos[p.id]?.ms
@@ -393,7 +414,8 @@ export function vistaResultado(destino, q, res, { alVolver, alRepasar }) {
                         : c.correcto
                           ? '<span class="pildora bien">acierto</span>'
                           : '<span class="pildora mal">fallo</span>'
-                  return `<tr><td>${i + 1}</td><td>${p.tema}</td><td>${p.formato}</td><td>${estado}</td>
+                  const formato = { test: 'Test', corta: 'Corta', larga: 'Desarrollo' }[p.formato] ?? p.formato
+                  return `<tr><td>${i + 1}</td><td>${p.tema}</td><td>${formato}</td><td>${estado}</td>
                     <td class="num">${t ? Math.round(t / 1000) + ' s' : '—'}</td></tr>`
                 })
                 .join(''),

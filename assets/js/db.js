@@ -72,6 +72,26 @@ const localAdapter = {
     return perfil
   },
 
+  /**
+   * Alumno sin cuenta, para la versión de examen. Cada dispositivo es un
+   * alumno: el progreso vive en su navegador y nadie más lo ve. Si en este
+   * navegador ya había un perfil —el de un revisor, con su correo— se respeta:
+   * pisarlo borraría la revisión que lleve hecha.
+   */
+  async perfilLocal() {
+    const estado = leerLocal()
+    if (estado.perfil) return estado.perfil
+    const perfil = {
+      id: uuid(),
+      email: null,
+      seudonimo: `dispositivo-${Math.random().toString(16).slice(2, 11)}`,
+      rol: 'alumno',
+      creado_en: new Date().toISOString(),
+    }
+    escribirLocal({ ...estado, perfil })
+    return perfil
+  },
+
   async salir() {
     escribirLocal(vacio())
   },

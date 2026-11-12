@@ -5,7 +5,7 @@
  * personales, así que se sirve como ficheros estáticos y se cachea. Lo que es
  * privado (quién responde qué) va a la base de datos, nunca aquí.
  */
-import { ADAPTATIVO } from './config.js'
+import { ADAPTATIVO, SOLO_EXAMEN } from './config.js'
 
 const RUTA_BANCO = 'datos/banco'
 const RUTA_TEMARIO = 'contenidos/temario.json'
@@ -62,20 +62,31 @@ export async function cargarTemas(numeros) {
   return bloques.flat()
 }
 
+/**
+ * Lo que ve el alumno. En la versión para el examen se ocultan las preguntas
+ * cuya clave contradice la clase: practicar con ellas le enseñaría a contestar
+ * en el examen lo contrario de lo explicado. La revisión docente sigue viendo
+ * el banco entero, porque ahí es justo donde hay que decidir sobre ellas.
+ */
+const visibleParaAlumno = (p) => !(SOLO_EXAMEN && p.diverge_de_la_clase)
+
+export async function cargarTemaAlumno(n) {
+  return (await cargarTema(n)).filter(visibleParaAlumno)
+}
+
 /** Estado del banco por tema: cuántas preguntas hay de cada formato. */
 export async function inventario() {
   const [{ temas }, indice] = await Promise.all([cargarTemario(), cargarIndice()])
   const porNumero = new Map(indice.temas.map((t) => [t.n, t]))
   return temas.map((t) => {
     const i = porNumero.get(t.n)
-    return {
-      ...t,
-      test: i?.test ?? 0,
-      corta: i?.corta ?? 0,
-      larga: i?.larga ?? 0,
-      total: i?.total ?? 0,
-      disponible: (i?.total ?? 0) > 0,
-    }
+    // Los recuentos tienen que cuadrar con lo que el alumno puede ver, o el
+    // contador de pendientes de un tema no llegaría nunca a cero.
+    const d = SOLO_EXAMEN ? (i?.divergentes ?? {}) : {}
+    const test = (i?.test ?? 0) - (d.test ?? 0)
+    const corta = (i?.corta ?? 0) - (d.corta ?? 0)
+    const larga = (i?.larga ?? 0) - (d.larga ?? 0)
+    return { ...t, test, corta, larga, total: test + corta + larga, disponible: test + corta + larga > 0 }
   })
 }
 
@@ -141,7 +152,7 @@ function cuposPorNivel(n, regimen) {
 export async function seleccionar({ temas, formato, n, vistas = new Set(), regimen = null }) {
   const porTema = await Promise.all(
     temas.map(async (t) => {
-      const qs = (await cargarTema(t)).filter((q) => formato === 'mixto' || q.formato === formato)
+      const qs = (await cargarTemaAlumno(t)).filter((q) => formato === 'mixto' || q.formato === formato)
       const nuevas = barajar(qs.filter((q) => !vistas.has(q.id)))
       const repetidas = barajar(qs.filter((q) => vistas.has(q.id)))
       return [...nuevas, ...repetidas]

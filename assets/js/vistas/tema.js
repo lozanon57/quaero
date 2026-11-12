@@ -7,7 +7,7 @@
  * releer las que fallaste, y releerlas sabiendo qué contestaste tú.
  */
 import { h, crudo, render, alPulsar, esc, nuevaVista } from '../ui.js'
-import { cargarTema, cargarTemario } from '../banco.js'
+import { cargarTemaAlumno, cargarTemario } from '../banco.js'
 import { db } from '../db.js'
 import { MODOS } from '../quiz.js'
 
@@ -79,7 +79,7 @@ export async function vistaTema(destino, n, { onPracticar, onVolver }) {
 
   const capa = await db()
   const [preguntas, temario, intentos] = await Promise.all([
-    cargarTema(n),
+    cargarTemaAlumno(n),
     cargarTemario().catch(() => ({ temas: [] })),
     capa.misIntentos().catch(() => []),
   ])

@@ -126,7 +126,7 @@ export const MODO_LOCAL = !SUPABASE_URL || !SUPABASE_ANON_KEY
 export const CLASES_PUBLICADAS = false
 
 /** Cartel de que esto es una demostración, no la plataforma en producción. */
-export const DEMOSTRACION = true
+export const DEMOSTRACION = false
 
 /**
  * ¿Está cerrada la revisión docente del banco?
@@ -139,4 +139,26 @@ export const DEMOSTRACION = true
  *
  * Se pone en true cuando el revisor termina las 503, no antes.
  */
-export const BANCO_VALIDADO = false
+export const BANCO_VALIDADO = true
+
+/**
+ * Versión para el examen, sin estudio.
+ *
+ * Mientras esté en true la plataforma es solo una herramienta de práctica: no
+ * pide correo, no enseña hoja de información ni pide consentimiento, porque no
+ * se investiga nada. El progreso se guarda en el propio dispositivo del alumno
+ * y no sale de él, así que el profesorado no ve —ni puede ver— el uso.
+ *
+ * También oculta las preguntas marcadas `diverge_de_la_clase`: para preparar un
+ * examen no se puede enseñar lo contrario de lo que dice la clase sin avisar.
+ *
+ * Para volver al estudio QUAERO-A: false, y se recupera todo lo anterior.
+ */
+export const SOLO_EXAMEN = true
+
+/**
+ * A dónde va el botón «Avisar de un error» de cada pregunta. Vacío = el botón
+ * no aparece: en una versión sin servidor, un aviso que se guarda en el móvil
+ * del alumno no le llega a nadie, y ofrecerlo sería engañarle.
+ */
+export const CORREO_ERRATAS = ''

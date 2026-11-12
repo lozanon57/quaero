@@ -6,7 +6,7 @@
  * vistas; las vistas no se hablan entre ellas.
  */
 import { h, crudo, render, alPulsar } from './ui.js'
-import { CONFIG, MODO_LOCAL, FASE_CALIBRACION, DEMOSTRACION, REVISORES, BANCO_VALIDADO } from './config.js'
+import { CONFIG, MODO_LOCAL, FASE_CALIBRACION, DEMOSTRACION, REVISORES, BANCO_VALIDADO, SOLO_EXAMEN } from './config.js'
 import { db } from './db.js'
 import { telemetria } from './telemetria.js'
 import { seleccionar, simulacroCompleto, regimenDificultad } from './banco.js'
@@ -33,6 +33,19 @@ const estado = {
 }
 
 function pintarNav() {
+  // Versión de examen: Inicio y, para quien revisa el banco, su revisión. Ni
+  // «Mi participación» —no hay estudio— ni «Salir»: sin cuenta no hay sesión que
+  // cerrar, y en local «Salir» borraba el progreso entero del alumno.
+  if (SOLO_EXAMEN) {
+    const revisa = REVISORES.includes((estado.perfil?.email ?? '').toLowerCase())
+    render(
+      nav,
+      h`
+      <button class="sutil pequeno" data-ruta="#/">Temario</button>
+      ${crudo(revisa ? '<button class="sutil pequeno" data-ruta="#/revision">Revisar el banco</button>' : '')}`,
+    )
+    return
+  }
   if (!estado.perfil || !estado.consentimiento || estado.reofrecerDecision) {
     nav.innerHTML = ''
     return
@@ -86,7 +99,7 @@ async function lanzarQuiz(preguntas, modo, temas, regimen = null, vistas = new S
     return
   }
   let fila = null
-  if (estado.consentimiento?.telemetria) {
+  if (SOLO_EXAMEN || estado.consentimiento?.telemetria) {
     try {
       fila = await (await db()).crearQuiz({
         modo,
@@ -157,15 +170,16 @@ async function pantallaInicio() {
 async function enrutar() {
   const ruta = location.hash || '#/'
 
-  if (!estado.perfil) {
+  if (!estado.perfil && !SOLO_EXAMEN) {
     vistaAcceso(app, async () => {
       await arrancar()
     })
     return
   }
-  // Puerta única: pronunciarse. Se vuelve a preguntar una sola vez a quien lo
+  // Puerta única: pronunciarse. En la versión de examen no existe: no hay nada
+  // sobre lo que pronunciarse. Se vuelve a preguntar una sola vez a quien lo
   // aplazó y ya han pasado siete dias; a la segunda, se respeta el silencio.
-  if (!estado.consentimiento || estado.reofrecerDecision) {
+  if (!SOLO_EXAMEN && (!estado.consentimiento || estado.reofrecerDecision)) {
     await vistaConsentimiento(app, async () => {
       await arrancar()
     })
@@ -177,6 +191,13 @@ async function enrutar() {
   // pregunta solo compraria deserción, y además diferencial — se caen antes los
   // que peor van, que son justo la cola que interesa observar.
   // Los cuestionarios se ofrecen desde «Mi participación», sin bloquear nada.
+
+  // En la versión de examen no hay participación que gestionar ni panel que
+  // mirar: quien llegue a esas rutas por un enlace viejo vuelve al temario.
+  if (SOLO_EXAMEN && (ruta.startsWith('#/perfil') || ruta.startsWith('#/panel'))) {
+    location.hash = '#/'
+    return
+  }
 
   if (ruta.startsWith('#/perfil')) {
     await vistaPerfil(app, {
@@ -291,7 +312,7 @@ async function enrutar() {
 async function arrancar() {
   try {
     const capa = await db()
-    estado.perfil = await capa.usuarioActual()
+    estado.perfil = SOLO_EXAMEN ? await capa.perfilLocal() : await capa.usuarioActual()
     estado.consentimiento = estado.perfil ? await capa.consentimientoActual() : null
     const c = estado.consentimiento
     const DIAS = 7 * 86400000
@@ -312,8 +333,25 @@ async function arrancar() {
 
   pintarNav()
   pintarBandaDemo()
-  if (estado.consentimiento?.telemetria) await telemetria.iniciar(true)
+  // En la versión de examen las respuestas se guardan siempre, pero solo en el
+  // dispositivo: son el progreso del alumno, no datos de un estudio.
+  if (SOLO_EXAMEN || estado.consentimiento?.telemetria) await telemetria.iniciar(true)
+  if (SOLO_EXAMEN) pedirAlmacenPersistente()
   await enrutar()
+}
+
+/**
+ * Pide al navegador que no borre el progreso por su cuenta. Sin esto, Safari y
+ * Chrome pueden vaciar el almacenamiento de un sitio poco visitado cuando
+ * necesitan espacio, y el alumno perdería lo hecho sin saber por qué. No todos
+ * los navegadores lo conceden; si no, no pasa nada más.
+ */
+function pedirAlmacenPersistente() {
+  try {
+    navigator.storage?.persist?.().catch(() => {})
+  } catch {
+    /* navegador sin la API: se sigue igual */
+  }
 }
 
 /** Cartel permanente mientras esto sea una prueba y no la plataforma real. */
@@ -333,7 +371,7 @@ function pintarBandaDemo() {
 addEventListener('hashchange', enrutar)
 arrancar()
 
-if (MODO_LOCAL) {
+if (MODO_LOCAL && !SOLO_EXAMEN) {
   console.info(
     `%cQUAERO en modo local%c\nLos datos se guardan solo en este navegador. ` +
       `Rellena SUPABASE_URL y SUPABASE_ANON_KEY en assets/js/config.js para persistir de verdad.\n` +

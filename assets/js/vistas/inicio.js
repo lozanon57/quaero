@@ -12,7 +12,7 @@
  * enseña el propio progreso.
  */
 import { h, crudo, render, alPulsar, diasHasta, esc, nuevaVista } from '../ui.js'
-import { CONFIG, FASE_CALIBRACION } from '../config.js'
+import { CONFIG, FASE_CALIBRACION, SOLO_EXAMEN } from '../config.js'
 import { inventario, regimenDificultad } from '../banco.js'
 import { db } from '../db.js'
 import { progresoPorTema, progresoGlobal } from '../progreso.js'
@@ -154,7 +154,7 @@ export async function vistaInicio(destino, { onEmpezar, onSimulacro }) {
           </div>
         </div>
 
-        <div class="campo">
+        <div class="campo" ${SOLO_EXAMEN ? 'hidden' : ''}>
           <label>Dificultad</label>
           <label class="casilla" style="margin-bottom:.4rem">
             <input type="checkbox" id="adaptar" checked>
@@ -209,6 +209,16 @@ export async function vistaInicio(destino, { onEmpezar, onSimulacro }) {
       ${crudo(
         disponibles.length < 5 ? '<p class="ayuda">Disponible cuando haya preguntas de más temas.</p>' : '',
       )}
+      ${crudo(
+        SOLO_EXAMEN
+          ? `<p class="ayuda" style="margin-top:1rem">Tu progreso se guarda en este dispositivo y no
+             sale de él: nadie más lo ve. Si cambias de móvil o borras los datos del navegador,
+             empiezas de cero.</p>
+             <p class="ayuda">Preguntas elaboradas por el Prof. Pablo Lozano Lominchar con ayuda de
+             inteligencia artificial y revisadas por el Prof. Luis González Bayón. Aun así puede
+             haber algún error: ante la duda, manda la clase.</p>`
+          : '',
+      )}
       <p class="ayuda" style="margin-top:1rem">El examen es el
       ${new Date(CONFIG.fechaExamen).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}${crudo(
         dias > 0 ? `, dentro de ${dias} días` : dias === 0 ? ', hoy' : '',
@@ -220,7 +230,9 @@ export async function vistaInicio(destino, { onEmpezar, onSimulacro }) {
   let modo = MODOS.ESTUDIO
   let formato = 'test'
   let n = 20
-  let adaptar = true
+  // En la versión de examen, la mezcla equilibrada del banco: es la que más se
+  // parece a la del examen real, y un ajuste por nivel la alejaría de ella.
+  let adaptar = !SOLO_EXAMEN
   const elegidos = new Set(disponibles.map((t) => t.n))
 
   const pintarTemas = () => {

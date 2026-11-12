@@ -1,19 +1,15 @@
-# QUAERO — versión de prueba
+# QUAERO — Patología Quirúrgica I
 
-Plataforma de práctica con preguntas de **Patología Quirúrgica I** (Cirugía General
-y del Aparato Digestivo), 4.º de Medicina, UCM.
+Plataforma de práctica para el examen de **Patología Quirúrgica I** (Cirugía
+General y del Aparato Digestivo), 4.º de Medicina, UCM.
 
-**Abrir:** https://lozanon57.github.io/quaero-demo/
+**Abrir:** https://lozanon57.github.io/quaero/
 
-503 preguntas sobre 30 temas: 354 de test de cuatro opciones, 119 cortas y 30
-largas. Cada una lleva explicación de por qué esa opción y por qué no las otras.
+501 preguntas sobre los 30 temas del programa —test de cuatro opciones,
+respuestas cortas y de desarrollo—, cada una con su explicación. Simulacro con
+la estructura y la penalización del examen.
 
-Esto es una prueba para revisión, no la plataforma del estudio:
-
-- No hay servidor. Todo lo que hagas se guarda solo en tu navegador y no sale de él.
-- No hay analítica ni recogida de datos de ningún tipo.
-- El material de clase no se publica aquí.
-
-El repositorio es público únicamente porque GitHub Pages no sirve repositorios
-privados en el plan gratuito. Lleva `robots.txt` y `noindex` para que no aparezca
-en buscadores, y debe retirarse antes de abrir la plataforma a los alumnos.
+- Sin registro. El progreso se guarda en el dispositivo de cada alumno y no sale
+  de él: no hay servidor, ni analítica, ni recogida de datos.
+- Preguntas elaboradas por el Prof. Pablo Lozano Lominchar con ayuda de
+  inteligencia artificial y revisadas por el Prof. Luis González Bayón.
