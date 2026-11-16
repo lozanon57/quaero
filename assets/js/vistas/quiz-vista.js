@@ -2,7 +2,7 @@
  * Vista del quiz. Renderiza el estado que le da quiz.js y le devuelve acciones;
  * no guarda estado propio salvo el nodo y el cronómetro.
  */
-import { h, crudo, render, alPulsar, esc, reloj, pct, nuevaVista } from '../ui.js'
+import { h, crudo, render, alPulsar, esc, reloj, pct, nuevaVista, confirmar } from '../ui.js'
 import { CONFIG, CLASES_PUBLICADAS, SOLO_EXAMEN, CORREO_ERRATAS } from '../config.js'
 import * as Q from '../quiz.js'
 import { db } from '../db.js'
@@ -270,8 +270,14 @@ export function vistaQuiz(destino, quizInicial, { alTerminar, registrar }) {
     }
   }
 
+  // Se puede llegar dos veces: la cuenta atrás vence con la confirmación de
+  // «Dejarlo aquí» abierta y luego el alumno pulsa «Salir». Una sola entrega.
+  let entregado = false
   async function finalizar() {
+    if (entregado) return
+    entregado = true
     clearInterval(cronometro)
+    document.querySelector('.velo')?.remove()
     anotarLectura()
     guardarTexto()
     q = Q.terminar(q)
@@ -308,7 +314,8 @@ export function vistaQuiz(destino, quizInicial, { alTerminar, registrar }) {
     pintar()
   })
   alPulsar(nodo, '#abandonar', async () => {
-    if (confirm('¿Salir de la tanda? Se guardará lo que llevas respondido.')) await finalizar()
+    const salir = await confirmar('¿Salir de la tanda? Se guardará lo que llevas respondido.', { si: 'Salir', no: 'Seguir' })
+    if (salir) await finalizar()
   })
   alPulsar(nodo, '[data-errata]', async (b) => {
     const motivo = prompt(
@@ -356,9 +363,9 @@ export function vistaResultado(destino, q, res, { alVolver, alRepasar }) {
     <section class="tarjeta">
       <h1>Resultado</h1>
       <div class="rejilla tres" style="margin:1.2rem 0">
-        <div class="metrica"><div class="valor">${dec(m.total, 1)}</div><div class="etiqueta">puntos obtenidos</div></div>
+        <div class="metrica"><div class="valor">${dec(m.total, 2)}</div><div class="etiqueta">puntos obtenidos</div></div>
         <div class="metrica"><div class="valor">${m.test.aciertos}/${m.test.n}</div><div class="etiqueta">test acertados</div></div>
-        <div class="metrica"><div class="valor">${res.minutos}</div><div class="etiqueta">minutos</div></div>
+        <div class="metrica"><div class="valor">${res.minutos}</div><div class="etiqueta">${res.minutos === 1 ? 'minuto' : 'minutos'}</div></div>
         <div class="metrica"><div class="valor">${res.segundosMedianosTest ?? '—'}</div><div class="etiqueta">segundos por pregunta</div></div>
       </div>
 
@@ -368,7 +375,9 @@ export function vistaResultado(destino, q, res, { alVolver, alRepasar }) {
               <strong>Con las reglas del examen:</strong> ${unoVarios(m.test.aciertos, 'acierto', 'aciertos')}
               (${conSigno(m.test.aciertos, 0)}), ${unoVarios(m.test.fallos, 'fallo', 'fallos')}
               (${conSigno(m.test.fallos * CONFIG.examen.test.fallo, 2)}) y ${m.test.enBlanco} en blanco (0)
-              &rarr; <strong>${dec(m.test.brutoTest, 2)} puntos</strong> en la parte de test.
+              &rarr; <strong>${conSigno(m.test.brutoTest, 2)} puntos</strong> en la parte de test${
+                m.test.brutoTest < 0 ? ', que en la nota cuenta como 0' : ''
+              }.
               ${
                 m.test.fallos >= 3
                   ? ` Cada tres fallos te cuestan casi un acierto: cuando dudes entre dos opciones, arriesga; cuando no tengas ni idea, el blanco vale más que el fallo.`

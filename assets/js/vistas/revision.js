@@ -15,7 +15,7 @@
  * Volver a ver dos veces la misma pregunta, en una tarea de quinientas tres, no
  * es una molestia menor: es lo que hace que se abandone a la mitad.
  */
-import { h, crudo, render, alPulsar, esc, nuevaVista, descargarTexto } from '../ui.js'
+import { h, crudo, render, alPulsar, esc, nuevaVista, descargarTexto, confirmar } from '../ui.js'
 import { CORREO_COORDINACION, MODO_LOCAL } from '../config.js'
 import { cargarIndice, cargarTemas } from '../banco.js'
 import { db } from '../db.js'
@@ -272,7 +272,7 @@ export async function vistaRevision(destino) {
   alPulsar(nodo, '#reiniciar', async () => {
     // Confirmacion con el numero dentro: «¿seguro?» a secas no informa de lo
     // que se pierde, y aqui se pueden perder cuatrocientas decisiones.
-    if (!confirm(`Se borran los ${marcas.size} dictámenes y el contador vuelve a ${preguntas.length}. No se puede deshacer. ¿Seguir?`)) return
+    if (!(await confirmar(`Se borran los ${marcas.size} dictámenes y el contador vuelve a ${preguntas.length}. No se puede deshacer. ¿Seguir?`, { si: 'Borrar y empezar de cero' }))) return
     await capa.borrarMisMarcas()
     marcas = new Map()
     mirandoRevisadas = false

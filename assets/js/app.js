@@ -5,7 +5,7 @@
  * necesita más. El estado vivo (quiz en curso) se guarda aquí y se pasa a las
  * vistas; las vistas no se hablan entre ellas.
  */
-import { h, crudo, render, alPulsar } from './ui.js'
+import { h, crudo, render, alPulsar, confirmar } from './ui.js'
 import { CONFIG, MODO_LOCAL, FASE_CALIBRACION, DEMOSTRACION, REVISORES, BANCO_VALIDADO, SOLO_EXAMEN } from './config.js'
 import { db } from './db.js'
 import { telemetria } from './telemetria.js'
@@ -154,7 +154,11 @@ async function pantallaInicio() {
       await lanzarQuiz(preguntas, modo, temas, r?.regimen ?? null, vistas)
     },
     onSimulacro: async (temas) => {
-      if (!confirm('El simulacro son 90 preguntas y dos horas, con penalización. ¿Empezamos?')) return
+      const empezar = await confirmar(
+        'El simulacro son 90 preguntas en dos horas, con −0,33 por cada fallo de test. ¿Empezamos?',
+        { si: 'Empezar el simulacro' },
+      )
+      if (!empezar) return
       const previos = await (await db()).misIntentos().catch(() => [])
       await lanzarQuiz(
         await simulacroCompleto(temas),

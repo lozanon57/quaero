@@ -218,8 +218,10 @@ export function intentosDe(q) {
 export function resultado(q) {
   const intentos = intentosDe(q)
   const m = marcador(intentos)
-  const test = q.preguntas.filter((p) => p.formato === 'test')
-  const dentroDe45 = test.filter((p) => (q.tiempos[p.id]?.ms ?? Infinity) <= CONFIG.segundosObjetivo * 1000)
+  // Solo las de test que llegaste a ver: en un simulacro dejado en la
+  // pregunta 2, el porcentaje se calculaba sobre 70 y salía un 3 %.
+  const test = q.preguntas.filter((p) => p.formato === 'test' && q.tiempos[p.id]?.ms)
+  const dentroDe45 = test.filter((p) => q.tiempos[p.id].ms <= CONFIG.segundosObjetivo * 1000)
   const msTest = test.map((p) => q.tiempos[p.id]?.ms ?? 0).filter(Boolean).sort((a, b) => a - b)
   return {
     marcador: m,

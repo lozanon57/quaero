@@ -64,6 +64,45 @@ export function alPulsar(raiz, selector, fn) {
   )
 }
 
+/**
+ * Confirmación dentro de la página, en lugar de `confirm()`.
+ *
+ * El diálogo nativo no es fiable donde más se va a usar la aplicación: los
+ * navegadores integrados (el que abre la cámara al leer el QR, WhatsApp,
+ * Instagram) lo suprimen y devuelven `false` sin mostrar nada, así que el botón
+ * parecía muerto. Devuelve una promesa que se resuelve en true o false.
+ */
+export function confirmar(texto, { si = 'Sí', no = 'Cancelar' } = {}) {
+  return new Promise((resolver) => {
+    const velo = document.createElement('div')
+    velo.className = 'velo'
+    velo.innerHTML = h`
+      <div class="confirmacion" role="alertdialog" aria-modal="true" aria-labelledby="confirmacion-texto">
+        <p id="confirmacion-texto">${texto}</p>
+        <div class="fila">
+          <button class="primario" data-respuesta="si">${si}</button>
+          <button class="sutil" data-respuesta="no">${no}</button>
+        </div>
+      </div>`
+    const cerrar = (valor) => {
+      document.removeEventListener('keydown', alTeclear)
+      velo.remove()
+      resolver(valor)
+    }
+    const alTeclear = (e) => {
+      if (e.key === 'Escape') cerrar(false)
+    }
+    velo.addEventListener('click', (e) => {
+      const boton = e.target.closest('[data-respuesta]')
+      if (boton) cerrar(boton.dataset.respuesta === 'si')
+      else if (e.target === velo) cerrar(false)
+    })
+    document.addEventListener('keydown', alTeclear)
+    document.body.append(velo)
+    velo.querySelector('[data-respuesta="si"]').focus()
+  })
+}
+
 export const minutos = (ms) => Math.round(ms / 60000)
 
 export function reloj(ms) {
